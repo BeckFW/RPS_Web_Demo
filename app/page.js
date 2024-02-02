@@ -15,9 +15,22 @@ export default function Home () {
   let lastVideoTime = -1;
   let results = undefined; 
   let webcamRunning = false;
-  let video, canvasElement, canvasCtx, gestureOutput, playerMoveDisplay, playerMove; 
+  let video, canvasElement, canvasCtx, gestureOutput, playerMoveDisplay, playerMove;  
 
   let gestureRecognizer; 
+
+
+  useEffect(()=>{
+    // Once the page has loaded // 
+    async function assignTasks() {
+      const vision = await setupVision(); 
+      gestureRecognizer = await setupGestureRec(vision); 
+    }
+    // Setup GestureRecognition Tasks
+    assignTasks();
+    // Access document elements
+    getDocumentElements();
+  }, [])
 
   const setupVision = async () => {
     // Create task for image file processing:
@@ -32,7 +45,7 @@ export default function Home () {
   const setupGestureRec = async (vision) => {
     const gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
       baseOptions: {
-        modelAssetPath: "/models/gesture_recognizer.task"
+        modelAssetPath: "/models/gesture_recognizer_rps.task"
       },
       numHands: 2,
       runningMode: "video", 
@@ -40,18 +53,6 @@ export default function Home () {
 
     return gestureRecognizer;
   }
-
-  useEffect(()=>{
-    // Once the page has loaded // 
-    async function assignTasks() {
-      const vision = await setupVision(); 
-      gestureRecognizer = await setupGestureRec(vision); 
-    }
-    // Setup GestureRecognition Tasks
-    assignTasks();
-    // Access document elements
-    getDocumentElements();
-  }, [])
 
   // Access document elements // 
   const getDocumentElements = () => {
@@ -87,7 +88,6 @@ export default function Home () {
     }
 
   }
-
 
   const predictWebcam = async () => {
     const webcamElement = document.getElementById("webcam");
@@ -136,13 +136,13 @@ export default function Home () {
       const handedness = results.handednesses[0][0].displayName;
 
       switch (categoryName) {
-        case "Victory":
+        case "scissors":
           playerMove = "Scissors";
           break; 
-        case "Closed_Fist":
+        case "rock":
           playerMove = "Rock"; 
           break;
-        case "Open_Palm":
+        case "paper":
           playerMove = "Paper"; 
           break;
         default:
