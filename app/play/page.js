@@ -1,6 +1,6 @@
 "use client"
 import Timer from "@/components/timer";
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 
 export default function Home() {
@@ -10,20 +10,30 @@ export default function Home() {
     const [npcScore, setNpcScore] = useState(0); 
     const [gameRunning, setGameRunning] = useState(false); 
     const [timerRunning, setTimerRunning] = useState(false); 
+    const [matchRunning, setMatchRunning] = useState(false); 
+    const [gameInProgress, setGameInProgress] = useState(false); 
+
+    const hiddenCanvasRef = useRef(null);
 
     const TIMER_LENGTH = 3; 
 
     const userManagerConfig = {
         video: true
     }
-    let video; 
+
+    let video, hiddenCanvas, context, result; 
 
     useEffect(()=>{
         findElements();
+        console.log("Found elements");  
     }, []);
 
-    const findElements = () => { 
+
+    const findElements = () => {
         video = document.querySelector("#webcam");
+        hiddenCanvas = hiddenCanvasRef.current; 
+        context = hiddenCanvas.getContext("2d"); 
+        result = document.querySelector("#result-photo"); 
     }
     
     const startCamera = () => {
@@ -42,8 +52,7 @@ export default function Home() {
             setGameRunning(true); 
             console.log("Game Running"); 
 
-            runCountdown()
-
+            runCountdown();
 
         } else {
             alert("Please enable your camera to start the game.");
@@ -56,26 +65,55 @@ export default function Home() {
         console.log("Game Stopped"); 
     }
 
+
+    const nextTurn = () => {
+        if (gameInProgress) calculateResult(); 
+        else runCountdown(); 
+    }
+
     const runCountdown = () => {
+        setGameInProgress(true); 
         setTimerRunning(true); 
     }
 
     const capturePlay = () => {
-        setTimerRunning(false); 
-        alert("Turn captured!"); 
+        findElements(); // ensure that all elements are available
+        setTimerRunning(false);
+        console.log(video.videoWidth); 
+        console.log(video.videoHeight);
+
+        hiddenCanvas.width = video.videoWidth; 
+        hiddenCanvas.height = video.videoHeight; 
+
+        context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight); 
+
+        const data = hiddenCanvas.toDataURL("image/png"); 
+        result.setAttribute("src", data); 
+
+        // Call Gesture API with captured image
+
+        console.log("Turn captured!"); 
+        calculateResult(); 
     }
 
     const calculateResult = () => {
-
+        // use RPS API to find result of game
+        console.log("Result!"); 
+        // Finish turn, allow user to play again
+        setGameInProgress(false); 
     }
     
 
     return(
         <div>
-            <div className="bg-white bg-full text-black mt-32 w-full px-2">
+            <div className="bg-white bg-full text-black mt-10 w-full px-2">
+                <div className="flex flex-col mb-10 align-center text-center">
+                <div className="text-2xl font-semibold">Rock, Paper, Scissors!</div>
+                <div className="px-20 text-md font-light">Play this classic game against a computer oponent. Use normal hand gestures in-front of the webcam to play!</div>
+                </div>
             <div id="scores" className="flex flex-row justify-center gap-24 mb-8">
                 <div className="px-10">{playerScore}/5</div>
-                <div>Score</div>
+                <div className="font-bold text-xl">Score</div>
                 <div className="px-10">{npcScore}/5</div>
             </div>
             <div id="gameplay-section" className="flex flex-row justify-center min-h-48 ">
@@ -97,9 +135,15 @@ export default function Home() {
                 <button onClick={gameRunning ? stopGame : startGame}>{gameRunning ? "Stop" : "Start"}</button>
             </div>
             <div className="px-5 py-2 rounded bg-sky-200 hover:bg-sky-300">
-                <button>Next Turn</button>
+                <button onClick={nextTurn}>Next Turn</button>
             </div>
             </div>
+            </div>
+            <div>
+                <img id="result-photo"></img>
+            </div>
+            <div className="hidden">
+                <canvas ref={hiddenCanvasRef} id="hidden-canvas"></canvas>
             </div>
         </div>
     )
