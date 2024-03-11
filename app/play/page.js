@@ -79,17 +79,16 @@ export default function Home() {
             video = document.querySelector('#webcam')
             // Activate the webcam stream.
             navigator.mediaDevices.getUserMedia(UMConfig)
-                .then((stream) => {
-                    video.srcObject = stream;
-                    setCamEnabled(true);
-                })
-                .catch((error) => {
-                    toast.error("Unable to launch camera", {
-                        description: "Ensure your camera is connected and permissions are granted for this site.",
-                        duration: 5000,
-                    });
+            .then((stream) => {
+                video.srcObject = stream;
+                setCamEnabled(true);
+            })
+            .catch((error) => {
+                toast.error("Unable to launch camera", {
+                    description: "Ensure your camera is connected and permissions are granted for this site.",
+                    duration: 5000,
                 });
-             
+            });  
         }
     }
 
@@ -156,63 +155,57 @@ export default function Home() {
 
         console.log('Sending request');
 
-        try {
-            let config = {
-                method: 'post',
-                maxBodyLength: Infinity,
-                url: 'http://localhost:3100/gestures/recognise',
-                headers: { 
-                  'Content-Type': 'image/png'
-                },
-                data: imageBuffer
-              };
-              
-              axios.request(config)
-              .then((response) => {
-                // Send result back
-                console.log(response.data);
-                result = {
-                    response: response.data,
-                    }
-
-                    calculateResult(result); 
-                })
-              .catch((error) => {
-                console.log(error); 
-                alert("Unable to register your move, no points have been added. " + error.response.data); 
-              });
-
-        } catch (error) {
-            console.warn(error); 
-            alert("Something went wrong");
-        }
-
+        let config = {
+            method: 'post',
+            maxBodyLength: Infinity,
+            url: 'http://localhost:3100/gestures/recognise',
+            headers: { 
+                'Content-Type': 'image/png'
+            },
+            data: imageBuffer
+            };
+            
+        axios.request(config)
+        .then((response) => {
+            // Send result back
+            console.log("Gesture Found: " + response.data);
+            calculateResult(response.data); 
+        })
+        .catch((error) => {
+            console.log(error); 
+            toast.error("Unable to register your move. No points have been added.", {
+                description: error.response || error.message,
+            }); 
+        });
     }
 
     const calculateResult = async (result) => {
         // use RPS API to find result of game
 
-        axios.get(`http://localhost:3100/moves/respond?moveID=${result.response}`)
+        console.log("RESULT: " + result);
+        axios.get(`http://localhost:3100/moves/respond?moveID=${result}`)
         .then((moveResponse)=>{
             console.log(moveResponse.data.move);
 
-        setCurrentPlayerMove(result.response);
-        setCurrentNpcMove(moveResponse.data.move.move); 
+            setCurrentPlayerMove(result);
+            setCurrentNpcMove(moveResponse.data.move.move); 
 
-        console.log(moveResponse.data.move.type);
+            console.log(moveResponse.data.move.type);
 
-        if (moveResponse.data.move.type == "loss") {
-            setPlayerWonRound(true); 
-            setPlayerScore(playerScore=>playerScore+1); 
-        } else {
-            setNpcWonRound(true); 
-            setNpcScore(npcScore=>npcScore+1);
-        }
-        // Finish turn, allow user to play again
-        setGameInProgress(false); 
+            if (moveResponse.data.move.type == "loss") {
+                setPlayerWonRound(true);
+                setPlayerScore(playerScore=>playerScore+1);
+            } else {
+                setNpcWonRound(true);
+                setNpcScore(npcScore=>npcScore+1);
+            }
+            // Finish turn, allow user to play again
+            setGameInProgress(false);
+            })
+        .catch((error) => {
+            toast.error("Unable to generate AI move. No points have been added.");
         });
     }
-    
 
     return(
         <div>
