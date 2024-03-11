@@ -1,13 +1,22 @@
 "use client"
 import Timer from "@/components/timer";
 import { useEffect, useRef, useState } from "react"
+import axios from "axios";
 
 
 export default function Home() {
 
     const [camEnabled, setCamEnabled] = useState(false); 
+    
     const [playerScore, setPlayerScore] = useState(0); 
     const [npcScore, setNpcScore] = useState(0); 
+
+    const [playerWonRound, setPlayerWonRound] = useState(false); 
+    const [npcWonRound, setNpcWonRound] = useState(false); 
+
+    const [currentPlayerMove, setCurrentPlayerMove] = useState("");
+    const [currentNpcMove, setCurrentNpcMove] = useState(""); 
+
     const [gameRunning, setGameRunning] = useState(false); 
     const [timerRunning, setTimerRunning] = useState(false); 
     const [matchRunning, setMatchRunning] = useState(false); 
@@ -28,6 +37,21 @@ export default function Home() {
         console.log("Found elements");  
     }, []);
 
+    
+    useEffect(()=>{
+        if (playerWonRound) {
+            //alert("You win this round!"); 
+            setInterval(()=>{
+                setPlayerWonRound(false);
+            }, 2000);
+        }
+        if (npcWonRound) {
+            //alert("Better luck next time!"); 
+            setInterval(()=>{
+                setNpcWonRound(false);
+            }, 2000); 
+        }
+    }, [playerWonRound, npcWonRound]); 
 
     const findElements = () => {
         video = document.querySelector("#webcam");
@@ -67,8 +91,11 @@ export default function Home() {
 
 
     const nextTurn = () => {
-        if (gameInProgress) calculateResult(); 
-        else runCountdown(); 
+        if (currentPlayerMove || currentNpcMove) {
+            setCurrentPlayerMove(""); 
+            setCurrentNpcMove(""); 
+        }
+        runCountdown(); 
     }
 
     const runCountdown = () => {
@@ -91,16 +118,77 @@ export default function Home() {
         result.setAttribute("src", data); 
 
         // Call Gesture API with captured image
+        recogniseGesture(data); 
 
         console.log("Turn captured!"); 
-        calculateResult(); 
+ 
     }
 
-    const calculateResult = () => {
+    const recogniseGesture = async (image) => {
+
+        let result;
+
+        // Re-encode Image from browser base64->binary buffer
+        const base64Image = image.split(',')[1]; 
+        const imageBuffer = Buffer.from(base64Image, 'base64'); 
+
+        console.log('Sending request');
+
+        try {
+            let config = {
+                method: 'post',
+                maxBodyLength: Infinity,
+                url: 'http://localhost:3100/gestures/recognise',
+                headers: { 
+                  'Content-Type': 'image/png'
+                },
+                data: imageBuffer
+              };
+              
+              axios.request(config)
+              .then((response) => {
+                // Send result back
+                console.log(response.data);
+                result = {
+                    response: response.data,
+                    }
+
+                    calculateResult(result); 
+                })
+              .catch((error) => {
+                console.log(error); 
+                alert("Unable to register your move, no points have been added. " + error.response.data); 
+              });
+
+        } catch (error) {
+            console.warn(error); 
+            alert("Something went wrong");
+        }
+
+    }
+
+    const calculateResult = async (result) => {
         // use RPS API to find result of game
-        console.log("Result!"); 
+
+        axios.get(`http://localhost:3100/moves/respond?moveID=${result.response}`)
+        .then((moveResponse)=>{
+            console.log(moveResponse.data.move);
+
+        setCurrentPlayerMove(result.response);
+        setCurrentNpcMove(moveResponse.data.move.move); 
+
+        console.log(moveResponse.data.move.type);
+
+        if (moveResponse.data.move.type == "loss") {
+            setPlayerWonRound(true); 
+            setPlayerScore(playerScore=>playerScore+1); 
+        } else {
+            setNpcWonRound(true); 
+            setNpcScore(npcScore=>npcScore+1);
+        }
         // Finish turn, allow user to play again
         setGameInProgress(false); 
+        });
     }
     
 
@@ -112,9 +200,15 @@ export default function Home() {
                 <div className="px-20 text-md font-light">Play this classic game against a computer oponent. Use normal hand gestures in-front of the webcam to play!</div>
                 </div>
             <div id="scores" className="flex flex-row justify-center gap-24 mb-8">
-                <div className="px-10">{playerScore}/5</div>
+                <div className="flex flex-col">
+                    <div className="px-10 font-bold">{playerScore}/5</div>
+                    <div className="self-center font-light text-sm pt-2">Move: {currentPlayerMove}</div>
+                </div>
                 <div className="font-bold text-xl">Score</div>
-                <div className="px-10">{npcScore}/5</div>
+                <div className="flex flex-col">
+                    <div className="px-10 font-bold">{npcScore}/5</div>
+                    <div className="self-center font-light text-sm pt-2">Move: {currentNpcMove}</div>
+                </div>
             </div>
             <div id="gameplay-section" className="flex flex-row justify-center min-h-48 ">
                 <div id="webcam-container" className="w-1/4 min-w-32 bg-sky-300 flex justify-center items-center relative overflow-hidden ">
@@ -125,7 +219,9 @@ export default function Home() {
                     <div className="text-md py-1">Next Play in...</div>
                     <Timer isRunning={timerRunning} seconds={TIMER_LENGTH} onFinish={capturePlay}/>
                 </div>
-                <div id="npc-view" className="w-1/4 min-w-32 bg-sky-300 p-10"></div>
+
+                <div id="npc-view" className="w-1/4 min-w-32 bg-sky-300 p-10 "></div>
+
             </div>
             <div id="buttons" className="flex flex-row gap-10 mt-8 justify-center">
             <div className="px-5 py-2 rounded bg-sky-200 hover:bg-sky-300">
@@ -138,9 +234,13 @@ export default function Home() {
                 <button onClick={nextTurn}>Next Turn</button>
             </div>
             </div>
+            <div className="flex justify-center items-center text-center">
+                {playerWonRound && "You Win!"}
+                {npcWonRound && "Better Luck Next Time!"}
             </div>
-            <div>
-                <img id="result-photo"></img>
+            </div>
+            <div className="flex justify-center pt-10 hidden">
+                <img className="w-2/3 rounded drop-shadow-xl" id="result-photo"></img>
             </div>
             <div className="hidden">
                 <canvas ref={hiddenCanvasRef} id="hidden-canvas"></canvas>
