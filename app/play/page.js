@@ -6,38 +6,49 @@ import axios from "axios";
 
 export default function Home() {
 
+    // State Variables // 
+
+    // Camera State
     const [camEnabled, setCamEnabled] = useState(false); 
     
+    // Scores
     const [playerScore, setPlayerScore] = useState(0); 
     const [npcScore, setNpcScore] = useState(0); 
 
+    // Player States (for UI)
     const [playerWonRound, setPlayerWonRound] = useState(false); 
     const [npcWonRound, setNpcWonRound] = useState(false); 
-
     const [currentPlayerMove, setCurrentPlayerMove] = useState("");
     const [currentNpcMove, setCurrentNpcMove] = useState(""); 
 
+    // Game State Variables
     const [gameRunning, setGameRunning] = useState(false); 
     const [timerRunning, setTimerRunning] = useState(false); 
     const [matchRunning, setMatchRunning] = useState(false); 
     const [gameInProgress, setGameInProgress] = useState(false); 
 
+    // Canvas for capturing images from webcam
     const hiddenCanvasRef = useRef(null);
 
+    // Countdown length
     const TIMER_LENGTH = 3; 
 
-    const userManagerConfig = {
+    // Configuration Object for UserManager (Webcam access)
+    const UMConfig = {
         video: true
     }
 
+    // Global variables
     let video, hiddenCanvas, context, result; 
 
+    // Run once after first render to find elements
     useEffect(()=>{
         findElements();
         console.log("Found elements");  
     }, []);
 
-    
+    // Control UI for celebrating win/loss
+    // Run when playerWonRound or npcWonRound is updated
     useEffect(()=>{
         if (playerWonRound) {
             //alert("You win this round!"); 
@@ -53,6 +64,8 @@ export default function Home() {
         }
     }, [playerWonRound, npcWonRound]); 
 
+    // Functions // 
+    
     const findElements = () => {
         video = document.querySelector("#webcam");
         hiddenCanvas = hiddenCanvasRef.current; 
@@ -65,7 +78,7 @@ export default function Home() {
             setCamEnabled(true); 
             video = document.querySelector('#webcam')
             // Activate the webcam stream.
-            navigator.mediaDevices.getUserMedia(userManagerConfig).then(function (stream) {
+            navigator.mediaDevices.getUserMedia(UMConfig).then(function (stream) {
             video.srcObject = stream;
             })
         }
