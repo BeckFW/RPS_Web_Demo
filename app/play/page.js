@@ -1,6 +1,7 @@
 "use client"
 import Timer from "@/components/timer";
 import { useEffect, useRef, useState } from "react"
+import { toast } from "sonner";
 import axios from "axios";
 
 
@@ -65,7 +66,7 @@ export default function Home() {
     }, [playerWonRound, npcWonRound]); 
 
     // Functions // 
-    
+
     const findElements = () => {
         video = document.querySelector("#webcam");
         hiddenCanvas = hiddenCanvasRef.current; 
@@ -75,12 +76,20 @@ export default function Home() {
     
     const startCamera = () => {
         if (!camEnabled) {
-            setCamEnabled(true); 
             video = document.querySelector('#webcam')
             // Activate the webcam stream.
-            navigator.mediaDevices.getUserMedia(UMConfig).then(function (stream) {
-            video.srcObject = stream;
-            })
+            navigator.mediaDevices.getUserMedia(UMConfig)
+                .then((stream) => {
+                    video.srcObject = stream;
+                    setCamEnabled(true);
+                })
+                .catch((error) => {
+                    toast.error("Unable to launch camera", {
+                        description: "Ensure your camera is connected and permissions are granted for this site.",
+                        duration: 5000,
+                    });
+                });
+             
         }
     }
 
@@ -92,7 +101,7 @@ export default function Home() {
             runCountdown();
 
         } else {
-            alert("Please enable your camera to start the game.");
+            toast.warning("Please enable your camera to start the game.");
         }
         
     }
