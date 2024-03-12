@@ -32,6 +32,6 @@ export default function Timer({isRunning, seconds, onFinish}) {
     }, [countdown])
 
     return ( 
-        <div className="font-bold text-center text-xl">{countdown}</div>
+        <div className="font-bold text-center text-2xl">{countdown}</div>
     )
 }

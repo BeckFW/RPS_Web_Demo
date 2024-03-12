@@ -3,6 +3,7 @@ import Timer from "@/components/timer";
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner";
 import axios from "axios";
+import MenuButton from "@/components/menu-button";
 
 
 export default function Home() {
@@ -40,6 +41,7 @@ export default function Home() {
     }
 
     // Global variables
+    const API_URL = "http://localhost:3100"
     let video, hiddenCanvas, context, result; 
 
     // Run once after first render to find elements
@@ -74,16 +76,21 @@ export default function Home() {
         result = document.querySelector("#result-photo"); 
     }
     
-    const startCamera = () => {
+    const startCamera = (runGame) => {
         if (!camEnabled) {
             video = document.querySelector('#webcam')
             // Activate the webcam stream.
             navigator.mediaDevices.getUserMedia(UMConfig)
             .then((stream) => {
+                // Assign stream to video element
                 video.srcObject = stream;
+                // Set camEnabled state
                 setCamEnabled(true);
+                // If triggered from start camera Toast, start the game too
+                if (runGame) startGame(true);
             })
             .catch((error) => {
+                console.log(error);
                 toast.error("Unable to launch camera", {
                     description: "Ensure your camera is connected and permissions are granted for this site.",
                     duration: 5000,
@@ -92,15 +99,21 @@ export default function Home() {
         }
     }
 
-    const startGame = () => {
-        if (camEnabled) {
+    const startGame = async (skipCheck) => {
+        // Start the game, check camera and setup UI etc
+        if (camEnabled || skipCheck == true) {
             setGameRunning(true); 
             console.log("Game Running"); 
 
-            runCountdown();
-
         } else {
-            toast.warning("Please enable your camera to start the game.");
+            toast.info("This game requires access to your camera.", {
+                duration: 5000,
+                action: {
+                    label: "Start Camera",
+                    onClick: ()=>startCamera(true),
+                }
+            }); 
+
         }
         
     }
@@ -110,6 +123,11 @@ export default function Home() {
         console.log("Game Stopped"); 
     }
 
+    const startMatch = () => {
+        // Start the match and run the countdown
+        setMatchRunning(true);
+        runCountdown();
+    }
 
     const nextTurn = () => {
         if (currentPlayerMove || currentNpcMove) {
@@ -158,7 +176,7 @@ export default function Home() {
         let config = {
             method: 'post',
             maxBodyLength: Infinity,
-            url: 'http://localhost:3100/gestures/recognise',
+            url: API_URL + '/gestures/recognise',
             headers: { 
                 'Content-Type': 'image/png'
             },
@@ -174,7 +192,7 @@ export default function Home() {
         .catch((error) => {
             console.log(error); 
             toast.error("Unable to register your move. No points have been added.", {
-                description: error.response || error.message,
+                description: error.response?.data || error.message,
             }); 
         });
     }
@@ -183,8 +201,9 @@ export default function Home() {
         // use RPS API to find result of game
 
         console.log("RESULT: " + result);
-        axios.get(`http://localhost:3100/moves/respond?moveID=${result}`)
+        axios.get(API_URL + `/moves/respond?moveID=${result}`)
         .then((moveResponse)=>{
+            console.log(moveResponse);
             console.log(moveResponse.data.move);
 
             setCurrentPlayerMove(result);
@@ -208,44 +227,65 @@ export default function Home() {
     }
 
     return(
-        <div>
-            <div className="bg-white bg-full text-black mt-10 w-full px-2">
-                <div className="flex flex-col mb-10 align-center text-center">
-                <div className="text-2xl font-semibold">Rock, Paper, Scissors!</div>
-                <div className="px-20 text-md font-light">Play this classic game against a computer oponent. Use normal hand gestures in-front of the webcam to play!</div>
+        <div className="">
+            <div className="bg-white dark:bg-zinc-800 bg-full text-black dark:text-white pt-12 w-full h-screen px-2">
+                <div className={`${gameRunning && "hidden"} flex flex-col mb-10 content-center align-center text-center`}>
+                <div className="text-3xl font-semibold">Rock, Paper, Scissors!</div>
+                <div className="px-5 mt-2 text-sm dark:text-zinc-300 font-light">Play this classic game against a computer oponent. Use normal hand gestures in-front of the webcam to play!</div>
                 </div>
-            <div id="scores" className="flex flex-row justify-center gap-24 mb-8">
+            <div id="scores" className={`${!gameRunning && "hidden"} flex flex-row justify-center mb-8`}>
                 <div className="flex flex-col">
-                    <div className="px-10 font-bold">{playerScore}/5</div>
-                    <div className="self-center font-light text-sm pt-2">Move: {currentPlayerMove}</div>
+                    <div className="px-10 font-bold">&#128587; {playerScore}/5</div>
+                    <div className="self-center font-light text-sm dark:text-zinc-300 pt-2">Move: {currentPlayerMove}</div>
                 </div>
                 <div className="font-bold text-xl">Score</div>
                 <div className="flex flex-col">
-                    <div className="px-10 font-bold">{npcScore}/5</div>
-                    <div className="self-center font-light text-sm pt-2">Move: {currentNpcMove}</div>
+                    <div className="px-10 font-bold">&#129302; {npcScore}/5</div>
+                    <div className="self-center font-light text-sm dark:text-zinc-300 pt-2">Move: {currentNpcMove}</div>
                 </div>
             </div>
-            <div id="gameplay-section" className="flex flex-row justify-center min-h-48 ">
-                <div id="webcam-container" className="w-1/4 min-w-32 bg-sky-300 flex justify-center items-center relative overflow-hidden ">
-                    <video id="webcam" autoPlay  playsInline className={`h-full scale-150 ${!camEnabled && "hidden"}`}></video>
+
+            <div id="gameplay-menu" className={`${gameRunning && "hidden"} flex justify-center text-center items-center p-10`}>
+                <ul className="flex flex-col gap-6">
+                    <li>
+                        <MenuButton action={startGame}>Play</MenuButton>  
+                    </li>
+                    <li>
+                        <MenuButton>Restart</MenuButton> 
+                    </li>
+                    <li>
+                        <MenuButton>GitHub</MenuButton>
+                    </li>
+                </ul>
+            </div>
+
+            <div id="gameplay-section" className={`${!gameRunning && "hidden"} flex flex-col justify-center min-h-48 px-10`}>
+                <div id="webcam-container" className=" aspect-[16/9] bg-sky-300 flex justify-center items-center relative overflow-hidden ">
+                    <video id="webcam" autoPlay  playsInline className={`${!camEnabled && "hidden"}`} style={{transform: 'scaleX(-1)', minWidth: '100%', minHeight: '100%'}}></video>
                     {!camEnabled && <button onClick={startCamera} className="px-2 py-2 bg-sky-100 rounded hover:bg-sky-50">Start Camera</button>}
                 </div>
-                <div id="countdown" className="px-10 flex flex-col justify-center">
-                    <div className="text-md py-1">Next Play in...</div>
+
+                {/* START MATCH */}
+                <div className={`${matchRunning && "hidden"} px-10 py-5 flex flex-row items-center justify-center`}>
+                    <MenuButton action={startMatch}>Go!</MenuButton>
+                </div>
+                {/* END START MATCH */}
+
+                {/* COUNTDOWN */}
+                <div id="countdown" className={`${!matchRunning && "hidden" } px-10 py-5 flex flex-row items-center justify-center`}>
+                    <div className="text-sm text-left pr-2">Next Play in... </div>
                     <Timer isRunning={timerRunning} seconds={TIMER_LENGTH} onFinish={capturePlay}/>
                 </div>
+                {/* END COUNTDOWN */}
 
-                <div id="npc-view" className="w-1/4 min-w-32 bg-sky-300 p-10 "></div>
+                <div id="npc-view" className="md:w-1/4 aspect-[16/9] bg-sky-300 p-10 "></div>
 
             </div>
-            <div id="buttons" className="flex flex-row gap-10 mt-8 justify-center">
-            <div className="px-5 py-2 rounded bg-sky-200 hover:bg-sky-300">
+            <div id="buttons" className={`${!gameRunning && "hidden"} flex flex-row gap-10 mt-8 justify-center`}>
+            <div className="px-5 py-2 rounded bg-cyan-500 hover:bg-cyan-500">
                 <button>Restart</button>
             </div>
-            <div className="px-5 py-2 rounded bg-sky-50 hover:bg-sky-300">
-                <button onClick={gameRunning ? stopGame : startGame}>{gameRunning ? "Stop" : "Start"}</button>
-            </div>
-            <div className="px-5 py-2 rounded bg-sky-200 hover:bg-sky-300">
+            <div className="px-5 py-2 rounded bg-cyan-500 hover:bg-sky-300">
                 <button onClick={nextTurn}>Next Turn</button>
             </div>
             </div>
