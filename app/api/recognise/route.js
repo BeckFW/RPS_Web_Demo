@@ -7,6 +7,8 @@ export async function POST(request) {
     const imageBuffer = body;
     // Send image to API
 
+    if (!imageBuffer) return NextResponse.json({data: "Unauthorized"}, {status: 401});
+
     let config = {
         method: 'post',
         maxBodyLength: Infinity,

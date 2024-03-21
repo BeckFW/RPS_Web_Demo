@@ -6,7 +6,8 @@ export async function GET(request) {
     const searchParams = request.nextUrl.searchParams
     const moveID = searchParams.get('moveID')
 
-    console.log("MoveID: " + moveID);
+    // Return unauthorized if no moveID
+    if (!moveID) return NextResponse.json({data: "Unauthorized"}, {status: 401});
 
     let config = {
         method: 'get',
