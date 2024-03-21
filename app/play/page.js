@@ -28,7 +28,7 @@ export default function Home() {
     const [timerRunning, setTimerRunning] = useState(false); 
     const [matchRunning, setMatchRunning] = useState(false); 
     const [gameInProgress, setGameInProgress] = useState(false); 
-
+    const [numGames, setNumGames] = useState(5); // default best of 5
     // Canvas for capturing images from webcam
     const hiddenCanvasRef = useRef(null);
 
@@ -40,8 +40,6 @@ export default function Home() {
         video: true
     }
 
-    // Global variables
-    const API_URL = "http://localhost:3100"
     let video, hiddenCanvas, context, result; 
 
     // Run once after first render to find elements
@@ -66,6 +64,21 @@ export default function Home() {
             }, 2000); 
         }
     }, [playerWonRound, npcWonRound]); 
+
+
+    useEffect(()=> {
+        if (playerScore > numGames/2) {
+            // Player wins
+            toast.success("You win the game!"); 
+            setGameRunning(false); 
+        }
+
+        if (npcScore > numGames/2) {
+            // NPC wins
+            toast.error("Better luck next time!"); 
+            setGameRunning(false); 
+        }
+    }, [playerScore, npcScore]);
 
     // Functions // 
 
@@ -172,13 +185,14 @@ export default function Home() {
         const imageBuffer = Buffer.from(base64Image, 'base64'); 
 
         console.log('Sending request');
+        console.log(imageBuffer);
 
         let config = {
             method: 'post',
             maxBodyLength: Infinity,
-            url: API_URL + '/gestures/recognise',
+            url: '/api/recognise',
             headers: { 
-                'Content-Type': 'image/png'
+                'Content-Type': 'image/png',
             },
             data: imageBuffer
             };
@@ -186,8 +200,9 @@ export default function Home() {
         axios.request(config)
         .then((response) => {
             // Send result back
-            console.log("Gesture Found: " + response.data);
-            calculateResult(response.data); 
+            const gesture = response.data.data;
+            console.log("Gesture Found: " + gesture);
+            calculateResult(gesture); 
         })
         .catch((error) => {
             console.log(error); 
@@ -197,21 +212,24 @@ export default function Home() {
         });
     }
 
-    const calculateResult = async (result) => {
+    const calculateResult = async (playerMove) => {
         // use RPS API to find result of game
+        console.log("RESULT: " + playerMove);
 
-        console.log("RESULT: " + result);
-        axios.get(API_URL + `/moves/respond?moveID=${result}`)
+        let config = {
+            method: 'get',
+            url: `api/respond?moveID=${playerMove}`,
+            };
+
+        axios.request(config)
         .then((moveResponse)=>{
-            console.log(moveResponse);
-            console.log(moveResponse.data.move);
+            const move = moveResponse.data.data.move;
+            console.log(move);
 
-            setCurrentPlayerMove(result);
-            setCurrentNpcMove(moveResponse.data.move.move); 
+            setCurrentPlayerMove(playerMove);
+            setCurrentNpcMove(move); 
 
-            console.log(moveResponse.data.move.type);
-
-            if (moveResponse.data.move.type == "loss") {
+            if (moveResponse.data.data.type == "loss") {
                 setPlayerWonRound(true);
                 setPlayerScore(playerScore=>playerScore+1);
             } else {
@@ -260,7 +278,7 @@ export default function Home() {
             </div>
 
             <div id="gameplay-section" className={`${!gameRunning && "hidden"} flex flex-col justify-center min-h-48 px-10`}>
-                <div id="webcam-container" className=" aspect-[16/9] bg-sky-300 flex justify-center items-center relative overflow-hidden ">
+                <div id="webcam-container" className=" aspect-[16/9] w-full md:w-3/4 self-center bg-sky-300 flex justify-center items-center overflow-hidden rounded-md">
                     <video id="webcam" autoPlay  playsInline className={`${!camEnabled && "hidden"}`} style={{transform: 'scaleX(-1)', minWidth: '100%', minHeight: '100%'}}></video>
                     {!camEnabled && <button onClick={startCamera} className="px-2 py-2 bg-sky-100 rounded hover:bg-sky-50">Start Camera</button>}
                 </div>
@@ -278,7 +296,7 @@ export default function Home() {
                 </div>
                 {/* END COUNTDOWN */}
 
-                <div id="npc-view" className="md:w-1/4 aspect-[16/9] bg-sky-300 p-10 "></div>
+                <div id="npc-view" className="aspect-[16/9] w-full md:w-3/4 self-center bg-sky-300 p-10 rounded-md "></div>
 
             </div>
             <div id="buttons" className={`${!gameRunning && "hidden"} flex flex-row gap-10 mt-8 justify-center`}>
