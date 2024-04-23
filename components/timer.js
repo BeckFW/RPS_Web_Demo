@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 
-export default function Timer({isRunning, seconds, onFinish}) {
+export default function Timer({isRunning, seconds, onFinish, setPulse}) {
 
     const [countdown, setCountdown] = useState(seconds); 
     const timerID = useRef(); 
@@ -11,9 +11,11 @@ export default function Timer({isRunning, seconds, onFinish}) {
 
     useEffect(()=> {
         if (isRunning) {
+            setPulse(true);
             timerID.current = setInterval(()=>{
                 // update timer
                 setCountdown(secs => secs - 1); 
+                setPulse(true);
             }, 1000); 
         } else {
             clearInterval(timerID.current); 
