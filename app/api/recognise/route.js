@@ -27,8 +27,8 @@ export async function POST(request) {
     })
     .catch((error) => {
         console.log("recognise error");
-        console.log(error);
-        return NextResponse.json({error: error.response}, {status: 500});
+        console.log(error.response.data);
+        return NextResponse.json({data: error.response.data}, {status: 500});
     });
 
 }

@@ -225,12 +225,18 @@ export default function Home() {
             calculateResult(gesture); 
         })
         .catch((error) => {
-            console.log(error); 
-            toast.error("Unable to register your move. No points have been added.", {
-                description: error.response?.data || error.message,
-            }); 
+            // try and format the error message if something went wrong with mediapipe
+            try {     
+                toast.error("Unable to register your move. No points have been added.", {
+                    description: "MediaPipe Error: " + JSON.stringify(error.response.data.data).split("\\n")[3], // split message by newline characters,
+                });
+            }
+            // something else happened, api is probably down
+            catch (e) {
+                toast.error("Unable to register your move. No points have been added.");
+            } 
         });
-    }
+    }  // ^ ew
 
     // Get the NPC move and find result
     const calculateResult = async (playerMove) => {
