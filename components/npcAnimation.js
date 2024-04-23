@@ -28,7 +28,7 @@ export default function NpcAnimation ({currentNpcMove, animate}) {
         animate={isPulsing ? { scale: 1.4 } : { scale: 1 }}
         transition={{ duration: 0.4, ease: "easeInOut"}}
         >
-        {npcMoveSymbol[currentNpcMove] || npcMoveSymbol["rock"]}
+        <p style={{transform: 'rotate(-90deg)'}}>{npcMoveSymbol[currentNpcMove] || npcMoveSymbol["rock"]}</p>
         </motion.div>
     );
 };
