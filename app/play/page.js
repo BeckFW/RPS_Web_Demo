@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner";
 import axios from "axios";
 import MenuButton from "@/components/menu-button";
+import NpcAnimation from "@/components/npcAnimation";
 
 
 export default function Home() {
@@ -29,17 +30,21 @@ export default function Home() {
     const [matchRunning, setMatchRunning] = useState(false); 
     const [gameInProgress, setGameInProgress] = useState(false); 
     const [numGames, setNumGames] = useState(5); // default best of 5
+    const [timerPulse, setTimerPulse] = useState(false);
     // Canvas for capturing images from webcam
     const hiddenCanvasRef = useRef(null);
 
     // Countdown length
     const TIMER_LENGTH = 3; 
+    // Win message display length
+    const WIN_MESSAGE_LENGTH = 2;
 
     // Configuration Object for UserManager (Webcam access)
     const UMConfig = {
         video: true
     }
 
+    // Global Variables
     let video, hiddenCanvas, context, result; 
 
     // Run once after first render to find elements
@@ -52,20 +57,20 @@ export default function Home() {
     // Run when playerWonRound or npcWonRound is updated
     useEffect(()=>{
         if (playerWonRound) {
-            //alert("You win this round!"); 
+            // Display playerWonRound message for 2 seconds
             setInterval(()=>{
                 setPlayerWonRound(false);
-            }, 2000);
+            }, WIN_MESSAGE_LENGTH * 1000);
         }
         if (npcWonRound) {
-            //alert("Better luck next time!"); 
+            // Display npcWonRound message for 2 seconds
             setInterval(()=>{
                 setNpcWonRound(false);
-            }, 2000); 
+            }, WIN_MESSAGE_LENGTH * 1000); 
         }
     }, [playerWonRound, npcWonRound]); 
 
-
+    // Check if game is over when the scores are updated
     useEffect(()=> {
         if (playerScore > numGames/2) {
             // Player wins
@@ -80,8 +85,16 @@ export default function Home() {
         }
     }, [playerScore, npcScore]);
 
+    useEffect(()=>{
+        if (timerPulse) {
+            setTimeout(()=>{
+                setTimerPulse(false);
+            }, 500);
+        }
+    }, [timerPulse]);
     // Functions // 
 
+    // Find HTML elements
     const findElements = () => {
         video = document.querySelector("#webcam");
         hiddenCanvas = hiddenCanvasRef.current; 
@@ -89,6 +102,7 @@ export default function Home() {
         result = document.querySelector("#result-photo"); 
     }
     
+    // Start the user's webcam
     const startCamera = (runGame) => {
         if (!camEnabled) {
             video = document.querySelector('#webcam')
@@ -112,8 +126,8 @@ export default function Home() {
         }
     }
 
+    // Start the game, check camera and setup UI etc
     const startGame = async (skipCheck) => {
-        // Start the game, check camera and setup UI etc
         if (camEnabled || skipCheck == true) {
             setGameRunning(true); 
             console.log("Game Running"); 
@@ -131,17 +145,20 @@ export default function Home() {
         
     }
 
+    // Stop the game
     const stopGame = () => {
         setGameRunning(false);
         console.log("Game Stopped"); 
     }
 
+    // Start the match
     const startMatch = () => {
         // Start the match and run the countdown
         setMatchRunning(true);
         runCountdown();
     }
 
+    // Skip to next turn
     const nextTurn = () => {
         if (currentPlayerMove || currentNpcMove) {
             setCurrentPlayerMove(""); 
@@ -150,11 +167,13 @@ export default function Home() {
         runCountdown(); 
     }
 
+    // Start the countdown
     const runCountdown = () => {
         setGameInProgress(true); 
         setTimerRunning(true); 
     }
 
+    // Capture an image from the user's webcam
     const capturePlay = () => {
         findElements(); // ensure that all elements are available
         setTimerRunning(false);
@@ -176,6 +195,7 @@ export default function Home() {
  
     }
 
+    // Send image to the gesture recognition API wrapper
     const recogniseGesture = async (image) => {
 
         let result;
@@ -212,13 +232,14 @@ export default function Home() {
         });
     }
 
+    // Get the NPC move and find result
     const calculateResult = async (playerMove) => {
         // use RPS API to find result of game
         console.log("RESULT: " + playerMove);
 
         let config = {
             method: 'get',
-            url: `api/respond?moveID=${playerMove}`,
+            url: `api/respond?moveID=${playerMove.trim()}`,
             };
 
         axios.request(config)
@@ -277,7 +298,7 @@ export default function Home() {
                 </ul>
             </div>
 
-            <div id="gameplay-section" className={`${!gameRunning && "hidden"} flex flex-col justify-center min-h-48 px-10`}>
+            <div id="gameplay-section" className={`${!gameRunning && "hidden"} flex flex-col md:flex-row justify-center min-h-48 px-10`}>
                 <div id="webcam-container" className=" aspect-[16/9] w-full md:w-3/4 self-center bg-sky-300 flex justify-center items-center overflow-hidden rounded-md">
                     <video id="webcam" autoPlay  playsInline className={`${!camEnabled && "hidden"}`} style={{transform: 'scaleX(-1)', minWidth: '100%', minHeight: '100%'}}></video>
                     {!camEnabled && <button onClick={startCamera} className="px-2 py-2 bg-sky-100 rounded hover:bg-sky-50">Start Camera</button>}
@@ -292,11 +313,14 @@ export default function Home() {
                 {/* COUNTDOWN */}
                 <div id="countdown" className={`${!matchRunning && "hidden" } px-10 py-5 flex flex-row items-center justify-center`}>
                     <div className="text-sm text-left pr-2">Next Play in... </div>
-                    <Timer isRunning={timerRunning} seconds={TIMER_LENGTH} onFinish={capturePlay}/>
+                    <Timer isRunning={timerRunning} seconds={TIMER_LENGTH} onFinish={capturePlay} setPulse={setTimerPulse}/>
                 </div>
                 {/* END COUNTDOWN */}
 
-                <div id="npc-view" className="aspect-[16/9] w-full md:w-3/4 self-center bg-sky-300 p-10 rounded-md "></div>
+                <div id="npc-view" className="aspect-[16/9] w-full md:w-3/4 self-center bg-sky-300 rounded-md flex justify-center items-center">
+                    {/*<div className="text-8xl text-center">{npcMoveSymbol[currentNpcMove] || npcMoveSymbol["rock"]}</div>*/}
+                    <NpcAnimation currentNpcMove={currentNpcMove} animate={timerPulse}/>
+                </div>
 
             </div>
             <div id="buttons" className={`${!gameRunning && "hidden"} flex flex-row gap-10 mt-8 justify-center`}>
