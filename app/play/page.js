@@ -6,6 +6,10 @@ import axios from "axios";
 import MenuButton from "@/components/menu-button";
 import NpcAnimation from "@/components/npcAnimation";
 
+// shadcn/ui
+import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+
 
 export default function Home() {
 
@@ -16,6 +20,8 @@ export default function Home() {
     
     // Scores
     const [playerScore, setPlayerScore] = useState(0); 
+    const [playerMatchScore, setPlayerMatchScore] = useState(0);
+    const [numMatchesPlayed, setNumMatchesPlayed] = useState(0);
     const [npcScore, setNpcScore] = useState(0); 
 
     // Player States (for UI)
@@ -37,7 +43,7 @@ export default function Home() {
     // Countdown length
     const TIMER_LENGTH = 3; 
     // Win message display length
-    const WIN_MESSAGE_LENGTH = 2;
+    const WIN_MESSAGE_LENGTH = 5;
 
     // Configuration Object for UserManager (Webcam access)
     const UMConfig = {
@@ -50,6 +56,7 @@ export default function Home() {
     // Run once after first render to find elements
     useEffect(()=>{
         findElements();
+        getScoreStorage(); 
         console.log("Found elements");  
     }, []);
 
@@ -74,14 +81,15 @@ export default function Home() {
     useEffect(()=> {
         if (playerScore > numGames/2) {
             // Player wins
-            toast.success("You win the game!"); 
-            setGameRunning(false); 
+            toast.success("You win the match!"); 
+            setPlayerMatchScore(playerMatchScore => parseInt(playerMatchScore) + 1);
+            stopGame();
         }
 
         if (npcScore > numGames/2) {
             // NPC wins
             toast.error("Better luck next time!"); 
-            setGameRunning(false); 
+            stopGame();
         }
     }, [playerScore, npcScore]);
 
@@ -100,6 +108,11 @@ export default function Home() {
         hiddenCanvas = hiddenCanvasRef.current; 
         context = hiddenCanvas.getContext("2d"); 
         result = document.querySelector("#result-photo"); 
+    }
+
+    // Update the number of games in a match
+    const updateNumGames = (value) => {
+        setNumGames(value);
     }
     
     // Start the user's webcam
@@ -145,9 +158,35 @@ export default function Home() {
         
     }
 
+    const getScoreStorage = () => {
+        // Get the playerMatchScore from localstorage
+        console.log("Initial Score Values: " + playerMatchScore + " " + numMatchesPlayed)
+        if (localStorage.getItem("playerMatchScore") != "null") {
+            console.log("Found Score Storage");
+            setPlayerMatchScore(localStorage.getItem("playerMatchScore"));
+            setNumMatchesPlayed(localStorage.getItem("numMatchesPlayed"));
+        } else {
+            console.log("Not retreiving storage");
+        }
+    }
+
+    const updateScoreStorage = () => {
+        // Add the playerMatchScore to localstorage whenever it's updated
+        console.log("Match Score: " + playerMatchScore + " Num Matches: " + numMatchesPlayed);
+        localStorage.setItem("playerMatchScore", playerMatchScore);
+        localStorage.setItem("numMatchesPlayed", numMatchesPlayed);
+    }
+
     // Stop the game
     const stopGame = () => {
         setGameRunning(false);
+        setPlayerScore(0);
+        setNpcScore(0);
+        setCurrentPlayerMove("");
+        setCurrentNpcMove("");
+        
+        setNumMatchesPlayed(numMatchesPlayed => parseInt(numMatchesPlayed)+1);
+        updateScoreStorage();
         console.log("Game Stopped"); 
     }
 
@@ -160,10 +199,15 @@ export default function Home() {
 
     // Skip to next turn
     const nextTurn = () => {
+        // Clear the recent moves
         if (currentPlayerMove || currentNpcMove) {
             setCurrentPlayerMove(""); 
             setCurrentNpcMove(""); 
         }
+        // Clear away round win messages
+        setNpcWonRound(false); 
+        setPlayerWonRound(false);
+        // Start the next turn
         runCountdown(); 
     }
 
@@ -176,7 +220,7 @@ export default function Home() {
     // Capture an image from the user's webcam
     const capturePlay = () => {
         findElements(); // ensure that all elements are available
-        setTimerRunning(false);
+        //setTimerRunning(false);
         console.log(video.videoWidth); 
         console.log(video.videoHeight);
 
@@ -274,23 +318,41 @@ export default function Home() {
     return(
         <div className="">
             <div className="bg-white dark:bg-zinc-800 bg-full text-black dark:text-white pt-12 w-full h-screen px-2">
-                <div className={`${gameRunning && "hidden"} flex flex-col mb-10 content-center align-center text-center`}>
+                <div className={`${gameRunning && "hidden"} flex flex-col mb-5 content-center align-center text-center`}>
                 <div className="text-3xl font-semibold">Rock, Paper, Scissors!</div>
                 <div className="px-5 mt-2 text-sm dark:text-zinc-300 font-light">Play this classic game against a computer oponent. Use normal hand gestures in-front of the webcam to play!</div>
                 </div>
             <div id="scores" className={`${!gameRunning && "hidden"} flex flex-row justify-center mb-8`}>
                 <div className="flex flex-col">
-                    <div className="px-10 font-bold">&#128587; {playerScore}/5</div>
-                    <div className="self-center font-light text-sm dark:text-zinc-300 pt-2">Move: {currentPlayerMove}</div>
+                    <div className="px-10 text-xl font-bold">&#128587; {playerScore}/{numGames}</div>
+                    <div className="self-center font-light text-md dark:text-zinc-300 pt-2">Move: {currentPlayerMove}</div>
                 </div>
-                <div className="font-bold text-xl">Score</div>
+                <div className="font-bold text-2xl">Score</div>
                 <div className="flex flex-col">
-                    <div className="px-10 font-bold">&#129302; {npcScore}/5</div>
-                    <div className="self-center font-light text-sm dark:text-zinc-300 pt-2">Move: {currentNpcMove}</div>
+                    <div className="px-10 text-xl font-bold">&#129302; {npcScore}/{numGames}</div>
+                    <div className="self-center font-light text-md dark:text-zinc-300 pt-2">Move: {currentNpcMove}</div>
                 </div>
             </div>
 
-            <div id="gameplay-menu" className={`${gameRunning && "hidden"} flex justify-center text-center items-center p-10`}>
+            <div id="gameplay-menu" className={`${gameRunning && "hidden"} flex flex-col justify-center text-center items-center p-5`}>
+                <div className="flex flex-col justify-center items-center pb-5">
+                    <div className="pb-5">How many games in a match?</div>
+                    <RadioGroup className="mb-5 gap-4" defaultValue={5} onValueChange={updateNumGames}>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value={3} id="three-games" />
+                            <Label htmlFor="three-games">Best of 3</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value={5} id="five-games" />
+                            <Label htmlFor="five-games">Best of 5</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value={7} id="seven-games" />
+                            <Label htmlFor="seven-games">Best of 7</Label>
+                        </div>
+                    </RadioGroup>
+
+                </div>
                 <ul className="flex flex-col gap-6">
                     <li>
                         <MenuButton action={startGame}>Play</MenuButton>  
@@ -304,24 +366,39 @@ export default function Home() {
                 </ul>
             </div>
 
+            <div className={`${numMatchesPlayed > 0 ? "" : "hidden"} ${gameRunning && "hidden"}`}>
+                <div className="flex flex-row justify-center items-center gap-10 mt-10 text-center">
+                    <div className="flex flex-col gap-2">
+                        <div className="text-xl font-bold">Games Won</div>
+                        <div className="text-3xl">{playerMatchScore}</div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <div className="text-xl font-bold">Games Played</div>
+                        <div className="text-3xl">{numMatchesPlayed}</div>
+                    </div>
+                </div>
+            </div>
+
             <div id="gameplay-section" className={`${!gameRunning && "hidden"} flex flex-col md:flex-row justify-center min-h-48 px-10`}>
                 <div id="webcam-container" className=" aspect-[16/9] w-full md:w-3/4 self-center bg-sky-300 flex justify-center items-center overflow-hidden rounded-md">
                     <video id="webcam" autoPlay  playsInline className={`${!camEnabled && "hidden"}`} style={{transform: 'scaleX(-1)', minWidth: '100%', minHeight: '100%'}}></video>
                     {!camEnabled && <button onClick={startCamera} className="px-2 py-2 bg-sky-100 rounded hover:bg-sky-50">Start Camera</button>}
                 </div>
 
+                <div className="px-10 py-5 flex flex-row items-center justify-center w-1/3 overflow-hidden">
                 {/* START MATCH */}
-                <div className={`${matchRunning && "hidden"} px-10 py-5 flex flex-row items-center justify-center`}>
+                <div className={`${matchRunning && "hidden"} `}>
                     <MenuButton action={startMatch}>Go!</MenuButton>
                 </div>
                 {/* END START MATCH */}
 
                 {/* COUNTDOWN */}
-                <div id="countdown" className={`${!matchRunning && "hidden" } px-10 py-5 flex flex-row items-center justify-center`}>
+                <div id="countdown" className={`${!matchRunning && "hidden" }`}>
                     <div className="text-sm text-left pr-2">Next Play in... </div>
-                    <Timer isRunning={timerRunning} seconds={TIMER_LENGTH} onFinish={capturePlay} setPulse={setTimerPulse}/>
+                    <Timer isRunning={timerRunning} seconds={TIMER_LENGTH} action={capturePlay} setTimerRunning={setTimerRunning} setPulse={setTimerPulse}/>
                 </div>
                 {/* END COUNTDOWN */}
+                </div>
 
                 <div id="npc-view" className="aspect-[16/9] w-full md:w-3/4 self-center bg-sky-300 rounded-md flex justify-center items-center">
                     {/*<div className="text-8xl text-center">{npcMoveSymbol[currentNpcMove] || npcMoveSymbol["rock"]}</div>*/}
@@ -330,14 +407,14 @@ export default function Home() {
 
             </div>
             <div id="buttons" className={`${!gameRunning && "hidden"} flex flex-row gap-10 mt-8 justify-center`}>
-            <div className="px-5 py-2 rounded bg-cyan-500 hover:bg-cyan-500">
-                <button>Restart</button>
+            <div className="px-5 py-2 w-1/4">
+                <MenuButton action={stopGame}>Quit</MenuButton>
             </div>
-            <div className="px-5 py-2 rounded bg-cyan-500 hover:bg-sky-300">
-                <button onClick={nextTurn}>Next Turn</button>
+            <div className="px-5 py-2 w-1/4">
+                <MenuButton action={nextTurn}>Next Turn</MenuButton>
             </div>
             </div>
-            <div className="flex justify-center items-center text-center">
+            <div className={`flex justify-center items-center text-center text-2xl ${playerWonRound && "text-cyan-300"} ${npcWonRound && "text-red-400"}`}>
                 {playerWonRound && "You Win!"}
                 {npcWonRound && "Better Luck Next Time!"}
             </div>
