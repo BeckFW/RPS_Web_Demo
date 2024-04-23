@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from "react";
 
-export default function Timer({isRunning, seconds, onFinish, setPulse}) {
+export default function Timer({isRunning, seconds, action, setTimerRunning, setPulse}) {
 
     const [countdown, setCountdown] = useState(seconds); 
     const timerID = useRef(); 
     
     const reset = () => {
+        setTimerRunning(false);
         setCountdown(seconds); 
     }
 
@@ -26,9 +27,11 @@ export default function Timer({isRunning, seconds, onFinish, setPulse}) {
     }, [isRunning])
 
     useEffect(()=> {
-        if (countdown == 0) {
-            clearInterval(timerID); 
-            onFinish(); 
+        if (countdown == 1 ) {
+            action();
+        }
+        else if (countdown == 0) {
+            clearInterval(timerID.current); 
             reset(); 
         }
     }, [countdown])
