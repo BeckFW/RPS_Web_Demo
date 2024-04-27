@@ -2,8 +2,12 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 
 export default function NpcAnimation ({currentNpcMove, animate}) {
-    const [isPulsing, setIsPulsing] = useState(false); // should the animation play
-    const [npcMoveSymbol, setNpcMoveSymbol] = useState({"rock": "👊", "paper": "✋", "scissors": "✌️"}); // possible animation content
+    
+    // has the animation been triggered
+    const [isPulsing, setIsPulsing] = useState(false);
+    
+    // possible animation content
+    const [npcMoveSymbol, setNpcMoveSymbol] = useState({"rock": "👊", "paper": "✋", "scissors": "✌️"}); 
 
     // Trigger pulse animation when animate changes
     useEffect(() => {
@@ -16,7 +20,7 @@ export default function NpcAnimation ({currentNpcMove, animate}) {
         // Trigger pulse animation
         setIsPulsing(true);
 
-        // Reset the pulse after a short delay (adjust as needed)
+        // Reset the pulse after a short delay
         setTimeout(() => {
         setIsPulsing(false);
         }, 500);
