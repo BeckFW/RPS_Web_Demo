@@ -14,7 +14,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={inter.className}>
         {children}
-        <Toaster richColors />
+        <Toaster richColors expand visibleToasts={5} />
         </body>
     </html>
   )
