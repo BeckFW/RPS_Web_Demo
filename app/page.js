@@ -9,6 +9,7 @@ import NpcAnimation from "@/components/npcAnimation";
 // shadcn/ui
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import HealthCheck from "@/components/healthcheck";
 
 
 export default function Home() {
@@ -404,6 +405,7 @@ export default function Home() {
                 <div className="text-3xl font-semibold">Rock, Paper, Scissors!</div>
                 <div className="px-5 mt-2 text-sm dark:text-zinc-300 font-light">Play this classic game against a computer oponent. Use normal hand gestures in-front of the webcam to play!</div>
                 </div>
+                <HealthCheck />
             <div id="scores" className={`${!gameRunning && "hidden"} flex flex-row justify-center mb-8`}>
                 <div className="flex flex-col">
                     <div className="px-10 text-xl font-bold">&#128587; {playerScore}/{numGames}</div>
