@@ -38,6 +38,7 @@ export default function Home() {
     const [numGames, setNumGames] = useState(5); // default best of 5
     const [currentGameNum, setCurrentGameNum] = useState(1);
     const [timerPulse, setTimerPulse] = useState(false);
+    const [isEasyMode, setIsEasyMode] = useState(true);
     // Canvas for capturing images from webcam
     const hiddenCanvasRef = useRef(null);
 
@@ -84,18 +85,30 @@ export default function Home() {
             // Player wins
             toast.success("You win the match!"); 
             setPlayerMatchScore(playerMatchScore => parseInt(playerMatchScore) + 1);
-            stopGame();
+            setInterval(() => {
+                stopGame();
+            }, 2000);
         }
 
         if (npcScore > numGames/2) {
             // NPC wins
             toast.error("Better luck next time!"); 
-            stopGame();
+            setInterval(() => {
+                stopGame();
+            }, 2000);
         }
 
         if (currentGameNum >= numGames) {
             // End the match
-            stopGame();
+            toast.info("Match has ended!");
+            if (playerScore > npcScore) {
+                toast.success("You got more points!"); 
+            } else {
+                toast.error("Better luck next time!"); 
+            }
+            setInterval(() => {
+                stopGame();
+            }, 2000);
         }
     }, [playerScore, npcScore, currentGameNum]);
 
@@ -296,35 +309,92 @@ export default function Home() {
 
     // Get the NPC move and find result
     const calculateResult = async (playerMove) => {
-        // use RPS API to find result of game
-        console.log("RESULT: " + playerMove);
 
-        let config = {
-            method: 'get',
-            url: `api/respond?moveID=${playerMove.trim()}`,
+        if (isEasyMode) {
+            // use RPS API to generate player move and get result
+            console.log("RESULT: " + playerMove);
+
+            let config = {
+                method: 'get',
+                url: `api/respond?moveID=${playerMove.trim()}`,
+                };
+
+            axios.request(config)
+            .then((moveResponse)=>{
+                const move = moveResponse.data.data.move;
+                console.log(move);
+
+                setCurrentPlayerMove(playerMove);
+                setCurrentNpcMove(move); 
+
+                if (moveResponse.data.data.type == "loss") {
+                    setPlayerWonRound(true);
+                    setPlayerScore(playerScore=>playerScore+1);
+                } else {
+                    setNpcWonRound(true);
+                    setNpcScore(npcScore=>npcScore+1);
+                }
+                // Finish turn, allow user to play again
+                endTurn();
+                })
+            .catch((error) => {
+                toast.error("Unable to generate AI move. No points have been added.");
+            });
+        } else {
+            // use RPS API generate a RANDOM move
+
+            let moveConfig = {
+                method: 'get',
+                url: `api/generate`,
             };
 
-        axios.request(config)
-        .then((moveResponse)=>{
-            const move = moveResponse.data.data.move;
-            console.log(move);
+            axios.request(moveConfig)
+            .then((moveResponse)=>{
+                const move = moveResponse.data.data;
+                console.log(`Player Move Found: ${playerMove}`)
+                console.log(`NPC Move Generated: ${move}`);
 
-            setCurrentPlayerMove(playerMove);
-            setCurrentNpcMove(move); 
+                setCurrentPlayerMove(playerMove);
+                setCurrentNpcMove(move); 
+                console.log("getting result");
+                // Call API again to get result
 
-            if (moveResponse.data.data.type == "loss") {
-                setPlayerWonRound(true);
-                setPlayerScore(playerScore=>playerScore+1);
-            } else {
-                setNpcWonRound(true);
-                setNpcScore(npcScore=>npcScore+1);
-            }
-            // Finish turn, allow user to play again
-            endTurn();
+                let resultConfig = {
+                    method: 'get',
+                    url: `api/result?playerMove=${playerMove}&npcMove=${move}`,
+                };
+
+                axios.request(resultConfig)
+                .then((resultResponse)=>{
+                    const result = resultResponse.data.data.toLowerCase();
+                    console.log(`Result: ${result}`);
+                    if (result == "win") {
+                        setPlayerWonRound(true);
+                        setPlayerScore(playerScore=>playerScore+1);
+                    } else if (result == "loss") {
+                        setNpcWonRound(true);
+                        setNpcScore(npcScore=>npcScore+1);
+                    } else {
+                        // Draw
+                        toast.info("It's a draw!");
+                    }
+                    // Finish turn, allow user to play again
+                    console.log("Ending Turn");
+                    endTurn();
+                })
+                .catch((error) => {
+                    throw error
+                })
             })
-        .catch((error) => {
-            toast.error("Unable to generate AI move. No points have been added.");
-        });
+            .catch((error) => {
+                toast.error("Unable to generate AI move. No points have been added.");
+            });
+        }
+    }
+
+    const updateGameType = (isEasy) => {
+        // Update the game type
+        setIsEasyMode(isEasy)
     }
 
     return(
@@ -347,13 +417,16 @@ export default function Home() {
             </div>
 
             <div id="gameplay-menu" className={`${gameRunning && "hidden"} flex flex-col justify-center text-center items-center p-5`}>
+                
+                <div className="flex flex-row justify-center gap-20 items-start">
+
                 <div className="flex flex-col justify-center items-center pb-5">
                     <div className="pb-5">How many games in a match?</div>
                     <RadioGroup className="mb-5 gap-4" defaultValue={5} onValueChange={updateNumGames}>
                         <div className="flex items-center space-x-2">
                             <RadioGroupItem value={3} id="three-games" />
                             <Label htmlFor="three-games">Best of 3</Label>
-                        </div>
+                         </div>
                         <div className="flex items-center space-x-2">
                             <RadioGroupItem value={5} id="five-games" />
                             <Label htmlFor="five-games">Best of 5</Label>
@@ -365,6 +438,22 @@ export default function Home() {
                     </RadioGroup>
 
                 </div>
+
+                <div className="flex flex-col justify-center items-center pb-5">
+                    <div className="pb-5">Game Style</div>
+                    <RadioGroup className="mb-5 gap-4" defaultValue={true} onValueChange={updateGameType}>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value={true} id="three-games" />
+                            <Label htmlFor="three-games">Easy</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value={false} id="five-games" />
+                            <Label htmlFor="five-games">Randomised</Label>
+                        </div>
+                    </RadioGroup>
+                </div>
+                </div>
+
                 <ul className="flex flex-col gap-6">
                     <li>
                         <MenuButton action={startGame}>Play</MenuButton>  
@@ -398,12 +487,15 @@ export default function Home() {
                 </div>
 
                 <div className="px-10 py-5 flex flex-row items-center justify-center w-full sm:w-1/3 overflow-hidden">
+                
+                
                 {/* START MATCH */}
                 <div className={`${matchRunning && "hidden"} w-full`}>
                     <MenuButton action={startMatch}>Go!</MenuButton>
                 </div>
                 {/* END START MATCH */}
 
+                
                 {/* COUNTDOWN */}
                 <div id="countdown" className={`${!matchRunning && "hidden" }`}>
                     <div className="text-sm text-left pr-2">Next Play in... </div>

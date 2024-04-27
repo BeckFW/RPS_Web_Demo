@@ -23,11 +23,12 @@ export async function POST(request) {
     return axios.request(config)
     .then((response) => {
         console.log("recognise success");
+        //console.log(response);
         return NextResponse.json({data: response.data}, {status: 200});    
     })
     .catch((error) => {
         console.log("recognise error");
-        console.log(error.response.data);
+        console.log(error);
         return NextResponse.json({data: error.response.data}, {status: 500});
     });
 
